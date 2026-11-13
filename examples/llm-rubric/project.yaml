@@ -1,0 +1,34 @@
+# The "fourth project": written after the first three, with zero new code.
+# Stand it up with:  ./annotate create examples/llm-rubric
+slug: llm-rubric
+name: "Text · LLM answer rubric"
+modality: text
+description: Grade model answers to user questions against a 3-criterion rubric.
+
+data:
+  kind: jsonl
+  path: items.jsonl
+
+display:
+  - {key: question, label: User question}
+  - {key: answer, label: Model answer, format: markdown}
+
+task:
+  instructions: Score each criterion 1-5, then give an overall preference and a one-line justification.
+  fields:
+    - {id: accuracy,    type: rating, label: Factual accuracy, required: true, labels: {1: wrong, 5: fully correct}}
+    - {id: helpfulness, type: rating, label: Helpfulness,      required: true}
+    - {id: tone,        type: rating, label: Tone & clarity,   required: true}
+    - {id: issues, type: choice, label: Issues found, multiple: true,
+       choices: [hallucination, incomplete, too-verbose, unsafe, none]}
+    - {id: justification, type: text, label: Justification, required: true}
+  checks:
+    - {check: min_words, field: justification, min: 5}
+
+review:
+  checklist: [Scores are consistent with the justification]
+
+members:
+  erin: admin
+  bob: worker
+  dan: reviewer

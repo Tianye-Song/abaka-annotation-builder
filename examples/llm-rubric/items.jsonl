@@ -1,0 +1,5 @@
+{"id": "q1", "question": "What is the boiling point of water at sea level in Fahrenheit?", "answer": "Water boils at **212\u00b0F** (100\u00b0C) at sea level."}
+{"id": "q2", "question": "Who wrote *Pride and Prejudice*?", "answer": "*Pride and Prejudice* was written by **Charlotte Bront\u00eb** in 1813."}
+{"id": "q3", "question": "How do I reverse a list in Python?", "answer": "Use `xs.reverse()` to reverse in place, or `xs[::-1]` to get a reversed copy."}
+{"id": "q4", "question": "Is it safe to look at the sun during a partial eclipse?", "answer": "No. Even during a partial eclipse you need certified solar viewing glasses; regular sunglasses are not enough."}
+{"id": "q5", "question": "Summarize what photosynthesis is in one sentence.", "answer": "Photosynthesis is a really interesting and very important process that happens in many, many different plants all over the world and it involves light and it is how they live, basically, in a sense."}

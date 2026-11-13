@@ -1,0 +1,55 @@
+# Code: label each snippet correct or buggy, and explain why.
+slug: code-correctness
+name: "Code · Correct or buggy"
+modality: text
+description: Short Python functions with a stated intent. Decide whether each one does what it claims.
+
+data:
+  kind: jsonl            # one item per line: {"id", "intent", "code", ...}
+  path: items.jsonl
+
+display:                 # which item fields the worker and reviewer see, and how
+  - {key: intent, label: "What the function should do"}
+  - {key: code, label: Snippet, format: code}
+
+task:
+  instructions: |
+    Read the intent, then the code. Mark it **correct** only if it handles
+    every input the intent implies (including edge cases). If it is **buggy**,
+    say which line is wrong and give an input that breaks it.
+  fields:
+    - id: verdict
+      type: choice
+      label: Verdict
+      choices: [correct, buggy]
+      required: true
+    - id: bug_category
+      type: choice
+      label: Bug category
+      choices: [off-by-one, wrong-condition, edge-case, wrong-output, other]
+      required_when: {field: verdict, equals: buggy}
+    - id: reason
+      type: text
+      label: Reason (failing input + explanation)
+      multiline: true
+      required: true
+    - id: confidence
+      type: rating
+      label: Confidence
+      min: 1
+      max: 5
+      labels: {1: guess, 5: certain}
+  checks:
+    - {check: min_words, field: reason, min: 6}
+
+review:
+  checklist:
+    - Verdict is right
+    - Reason points at the actual problem (or convincingly argues correctness)
+  require_comment_on_fail: true
+
+members:
+  alice: admin
+  dan: worker
+  erin: worker
+  carol: reviewer

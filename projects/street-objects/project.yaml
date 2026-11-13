@@ -1,0 +1,42 @@
+# Image: draw a box around every object and classify it.
+slug: street-objects
+name: "Image · Street objects"
+modality: image
+description: Synthetic street scenes. Box every car, person and tree.
+
+data:
+  kind: files            # one item per file; width/height are probed automatically
+  path: data
+  glob: "*.png"
+
+task:
+  instructions: |
+    Choose a class, then drag on the image to draw a box. Box **every** car,
+    person and tree, tightly around the visible object. Overlapping cars get
+    one box each.
+  fields:
+    - id: boxes
+      type: bbox
+      label: Objects
+      classes: [car, person, tree]
+      required: true
+    - id: scene_time
+      type: choice
+      label: Time of day
+      choices: [day, dusk, night]
+  checks:
+    - {check: min_count, field: boxes, min: 1}
+    - {check: within_image, field: boxes}
+    - {check: min_box_size, field: boxes, min_px: 8}
+
+review:
+  checklist:
+    - No objects are missing a box
+    - Boxes are tight (no big margins)
+    - Every class label is correct
+
+members:
+  alice: admin
+  carol: worker
+  dan: worker
+  bob: reviewer      # bob is a worker on audio and a reviewer here

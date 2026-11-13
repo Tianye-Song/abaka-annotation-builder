@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Operator CLI. Examples:
+#   ./annotate create examples/llm-rubric
+#   ./annotate validate projects/street-objects
+#   ./annotate schema projects/code-correctness
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+args=()
+for a in "$@"; do
+  if [[ -e "$a" ]]; then args+=("$(cd "$(dirname "$a")" && pwd)/$(basename "$a")"); else args+=("$a"); fi
+done
+cd "$ROOT/backend"
+if command -v uv >/dev/null 2>&1; then
+  exec uv run --quiet python -m app.cli "${args[@]}"
+else
+  exec "$ROOT/backend/.venv/bin/python" -m app.cli "${args[@]}"
+fi

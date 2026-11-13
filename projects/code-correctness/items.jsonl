@@ -1,0 +1,8 @@
+{"id": "snippet-01-is_even", "intent": "Return True if n is even.", "code": "def is_even(n):\n    return n % 2 == 0", "language": "python"}
+{"id": "snippet-02-last_n", "intent": "Return the last n elements of xs (n >= 0).", "code": "def last_n(xs, n):\n    return xs[-n:]", "language": "python"}
+{"id": "snippet-03-avg", "intent": "Return the average of a non-empty list of numbers.", "code": "def avg(xs):\n    total = 0\n    for x in xs:\n        total += x\n    return total / len(xs)", "language": "python"}
+{"id": "snippet-04-find_index", "intent": "Return the index of target in xs, or -1 if it is absent.", "code": "def find_index(xs, target):\n    for i in range(1, len(xs)):\n        if xs[i] == target:\n            return i\n    return -1", "language": "python"}
+{"id": "snippet-05-is_leap", "intent": "Return True if year is a Gregorian leap year.", "code": "def is_leap(year):\n    return year % 4 == 0 and year % 100 != 0", "language": "python"}
+{"id": "snippet-06-clamp", "intent": "Clamp x into the inclusive range [lo, hi].", "code": "def clamp(x, lo, hi):\n    return max(lo, min(x, hi))", "language": "python"}
+{"id": "snippet-07-dedupe", "intent": "Remove duplicates from xs, keeping the first occurrence order.", "code": "def dedupe(xs):\n    seen = set()\n    out = []\n    for x in xs:\n        if x not in seen:\n            seen.add(x)\n            out.append(x)\n    return out", "language": "python"}
+{"id": "snippet-08-max_of", "intent": "Return the largest number in a non-empty list.", "code": "def max_of(xs):\n    best = 0\n    for x in xs:\n        if x > best:\n            best = x\n    return best", "language": "python"}

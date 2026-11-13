@@ -1,0 +1,49 @@
+# Audio: transcribe each clip and mark who speaks when.
+slug: speaker-turns
+name: "Audio · Speaker turns"
+modality: audio
+description: Two-speaker dialogues. Mark every speaker turn with start/end time and transcribe it.
+
+data:
+  kind: files            # one item per file; duration is probed automatically
+  path: data
+  glob: "*.wav"
+
+task:
+  instructions: |
+    Play the clip. For each speaker turn, set **start** and **end** (use the
+    "mark" buttons while playing), pick the speaker, and type exactly what was said.
+    Speaker A is the first voice heard if unsure.
+  fields:
+    - id: segments
+      type: audio_segments
+      label: Speaker turns
+      speakers: [A, B]
+      transcribe: true
+      required: true
+    - id: audio_quality
+      type: choice
+      label: Audio quality
+      choices: [clean, noisy, unusable]
+      required: true
+    - id: notes
+      type: text
+      label: Notes for reviewer
+      multiline: true
+  checks:
+    - {check: min_count, field: segments, min: 2}
+    - {check: no_overlap, field: segments}
+    - {check: within_duration, field: segments}
+    - {check: coverage, field: segments, min_ratio: 0.5, severity: warning}
+
+review:
+  checklist:
+    - Every speaker change has its own segment
+    - Start/end times are within ~0.3s of the speech
+    - Transcripts match the audio word for word
+
+members:
+  alice: admin
+  bob: worker
+  carol: worker
+  dan: reviewer
