@@ -72,6 +72,29 @@ After sign-in, **Your projects** lists every project you can access with your ro
 | **Worker** | project → **My tasks** | Rework first (with the reviewer's comment), then to do, then done. Annotate with controls generated from the definition; drafts save automatically and checks run live. **Submit** goes straight to your next task; **← Previous / Next →** steps through your tasks. A submitted task can still be edited and resubmitted until it is reviewed. |
 | **Reviewer** | project → **Review** | Only tasks assigned to you for review. Inspect the annotation (read-only), see the automatic check results, tick the checklist, **Pass**, or **Fail** with a comment, which sends the task back to the same worker. |
 
+### The three example instances: how each was created
+
+Each instance is one definition file plus its sample data. No instance has code of its own.
+
+| Instance | Definition (what I wrote) | Data | Task |
+|----------|---------------------------|------|------|
+| **Audio** · Speaker turns | [`projects/speaker-turns/project.yaml`](projects/speaker-turns/project.yaml) (39 lines) | 6 synthetic `.wav` dialogues, one item per file | mark each speaker turn (start/end time + speaker) and transcribe it; rate audio quality |
+| **Image** · Street objects | [`projects/street-objects/project.yaml`](projects/street-objects/project.yaml) (32 lines) | 7 synthetic `.png` street scenes, one item per file | draw a box around every car / person / tree; pick the time of day |
+| **Code** · Correct or buggy | [`projects/code-correctness/project.yaml`](projects/code-correctness/project.yaml) (44 lines) | 8 Python snippets in `items.jsonl`, one item per line | label each snippet correct or buggy with a reason; a bug category is also required when buggy |
+
+**Steps / command.** `./start.sh` creates all three on first start: for each `projects/*/project.yaml` it calls the same
+`create_project` path the UI's **Create** button uses, then adds the team from [`config/seed.yaml`](config/seed.yaml).
+The same instance can be made by hand in the browser: **+ New project** → **Reuse a previous project** → pick it → upload
+the files from its `data/` folder (or its `items.jsonl`) → **Create** → add a worker and a reviewer on the Admin page.
+
+**What the mechanism handled** (shared code, written once):
+- **Loading items:** the files matching the glob or the JSONL lines, plus automatic WAV duration and PNG size for the checks.
+- **Worker controls:** built from the `fields` list. The timeline and box-drawing widgets sit on the media; the others go in the side panel.
+- **Output schema:** derived from the fields and enforced on submit, including conditional rules such as "bug category required when buggy".
+- **Quality checks:** `no_overlap`, `within_duration`, `coverage`, `within_image`, `min_box_size`, `min_count` and `min_words`, switched on by name in the definition.
+- **Reviewer view and rules:** a read-only view of the same widgets, the checklist, and a required comment on fail.
+- **Everything else is shared:** login and roles, the team, assignment, the task lifecycle with rework, drafts, versioning, progress and pass rates, export, and the portal.
+
 ### How to create a new project instance (no code), then take one task end to end
 
 1. Sign in as **Alice** → **+ New project** → **Reuse a previous project** → *Example definitions*: **Text · LLM answer rubric**. The preview on the right shows what will be generated.

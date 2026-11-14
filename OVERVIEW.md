@@ -35,7 +35,7 @@ share one process, one database and one UI bundle, and each has its own URL name
    (`bbox`, `audio_segments`) own the media, because you draw on the image and mark time on the audio. Others sit in the side panel.
    The same widget runs in read-only mode for reviewers, so the reviewer sees exactly what the worker produced.
 
-**The fourth-project test.** Done entirely in the browser: *New project* → *Copy of …* (or blank) → edit about 30 lines of YAML while the preview
+**The fourth-project test.** Done entirely in the browser: *+ New project* → *Reuse a previous project* (or blank) → edit about 30 lines of YAML while the preview
 shows what will be generated → upload `items.jsonl` → *Create* → add the team. No code, no CLI and no restart.
 New code is only needed for a genuinely new *kind* of control (polygon, keypoints, NER spans). That is one backend class
 plus one React component, and every project can then use it.
