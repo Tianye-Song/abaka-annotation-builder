@@ -3,18 +3,20 @@ import { api, useLoad, type TaskRow } from "../api";
 import { StatusBadge } from "../components/common";
 import { useProject } from "./ProjectLayout";
 
-function TaskTable({ rows, showAssignee, empty }: { rows: TaskRow[]; showAssignee?: boolean; empty: string }) {
+function TaskTable({ rows, showAssignee, showStatus = true, empty }: {
+  rows: TaskRow[]; showAssignee?: boolean; showStatus?: boolean; empty: string;
+}) {
   if (!rows.length) return <p className="muted">{empty}</p>;
   return (
     <table className="grid">
       <thead>
-        <tr><th>Item</th><th>Status</th>{showAssignee && <th>Worker</th>}<th>Version</th><th>Last review</th><th /></tr>
+        <tr><th>Item</th>{showStatus && <th>Status</th>}{showAssignee && <th>Worker</th>}<th>Version</th><th>Last review</th><th /></tr>
       </thead>
       <tbody>
         {rows.map((t) => (
           <tr key={t.id}>
             <td className="mono">{t.external_id}</td>
-            <td><StatusBadge status={t.status} /></td>
+            {showStatus && <td><StatusBadge status={t.status} /></td>}
             {showAssignee && <td>{t.assignee}</td>}
             <td>{t.versions ? `v${t.versions}` : "—"}</td>
             <td className="comment-cell">
@@ -28,20 +30,26 @@ function TaskTable({ rows, showAssignee, empty }: { rows: TaskRow[]; showAssigne
   );
 }
 
-/** Worker: rework first (it carries reviewer feedback), then new work, then history. */
+/** A worker's tasks in queue order: rework first (it carries reviewer feedback), then new work, then done. */
+export function workerOrder(rows: TaskRow[]): TaskRow[] {
+  const rank: Record<string, number> = { failed: 0, assigned: 1 };
+  return [...rows].sort((a, b) => (rank[a.status] ?? 2) - (rank[b.status] ?? 2)); // stable: keeps the server's order within a group
+}
+
+/** Worker: rework first, then new work, then history. */
 export function WorkerQueue() {
   const p = useProject();
   const { data } = useLoad(() => api<TaskRow[]>(`/projects/${p.slug}/my-tasks`), [p.slug]);
   if (!data) return <div className="muted">Loading…</div>;
-  const by = (...s: string[]) => data.filter((t) => s.includes(t.status));
+  const by = (...s: string[]) => workerOrder(data).filter((t) => s.includes(t.status));
   return (
     <div>
       <h3>Needs rework <span className="count">{by("failed").length}</span></h3>
       <TaskTable rows={by("failed")} empty="Nothing sent back to you." />
       <h3>To do <span className="count">{by("assigned").length}</span></h3>
-      <TaskTable rows={by("assigned")} empty="No new tasks assigned to you." />
+      <TaskTable rows={by("assigned")} showStatus={false} empty="No new tasks assigned to you." />
       <h3>Done</h3>
-      <TaskTable rows={by("submitted", "passed")} empty="Nothing submitted yet." />
+      <TaskTable rows={by("submitted", "passed")} showStatus={false} empty="Nothing submitted yet." />
     </div>
   );
 }

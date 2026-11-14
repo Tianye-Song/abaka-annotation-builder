@@ -7,7 +7,8 @@
                           (reassign)             failed --submit (rework)--> submitted
 
 A failed task keeps its assignee, so rework always goes back to the same worker
-along with the reviewer's comment.
+along with the reviewer's comment. Until the reviewer decides, the worker may resubmit a
+submitted task; that replaces the pending (unreviewed) submission instead of adding a version.
 """
 from __future__ import annotations
 
@@ -19,9 +20,14 @@ TRANSITIONS: dict[tuple[str, str], tuple[str, str]] = {
     ("assigned", "assign"): ("assigned", "admin"),  # reassign before any work is submitted
     ("assigned", "submit"): ("submitted", "worker"),
     ("failed", "submit"): ("submitted", "worker"),
+    ("submitted", "submit"): ("submitted", "worker"),  # change it before the reviewer has decided
     ("submitted", "pass"): ("passed", "reviewer"),
     ("submitted", "fail"): ("failed", "reviewer"),
 }
+
+
+# Statuses where a task still occupies its worker (SQL `IN` list, used by several queries).
+OPEN_SQL = "('assigned','failed','submitted')"
 
 
 def advance(status: str, action: str, roles: set[str]) -> str:

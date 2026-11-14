@@ -1,0 +1,28 @@
+# Text, created in the UI. Data: upload examples/review-sentiment/items.jsonl
+slug: review-sentiment
+name: "Text · Review sentiment"
+modality: text
+description: Label the sentiment of product reviews and the aspects they mention.
+
+data:
+  kind: jsonl
+  path: items.jsonl
+
+display:
+  - {key: product, label: Product}
+  - {key: review, label: Customer review}
+
+task:
+  instructions: Pick the overall sentiment, tick every aspect the review talks about, and justify briefly.
+  fields:
+    - {id: sentiment, type: choice, label: Sentiment, choices: [positive, neutral, negative], required: true}
+    - {id: aspects, type: choice, label: Aspects mentioned, multiple: true, choices: [price, quality, shipping, support]}
+    - {id: rationale, type: text, label: Rationale, required: true}
+    - {id: confidence, type: rating, label: Confidence, min: 1, max: 3, labels: {1: low, 3: high}}
+  checks:
+    - {check: min_words, field: rationale, min: 4}
+
+review:
+  checklist:
+    - Sentiment is correct
+    - All mentioned aspects are ticked

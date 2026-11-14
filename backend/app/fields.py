@@ -26,7 +26,7 @@ class _Params(BaseModel):
 class FieldType:
     name: ClassVar[str]
     Params: ClassVar[type[_Params]] = _Params
-    modalities: ClassVar[set[str]] = {"audio", "image", "text"}
+    modalities: ClassVar[set[str]] = {"audio", "image", "text", "code"}
 
     def schema(self, p: Any) -> dict:
         raise NotImplementedError

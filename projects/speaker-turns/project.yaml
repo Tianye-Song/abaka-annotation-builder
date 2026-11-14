@@ -41,9 +41,3 @@ review:
     - Every speaker change has its own segment
     - Start/end times are within ~0.3s of the speech
     - Transcripts match the audio word for word
-
-members:
-  alice: admin
-  bob: worker
-  carol: worker
-  dan: reviewer

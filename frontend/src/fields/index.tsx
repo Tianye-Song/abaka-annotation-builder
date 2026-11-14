@@ -34,6 +34,20 @@ export function isRequired(field: FieldDef, values: Record<string, any>): boolea
   return !!w && values[w.field] === w.equals;
 }
 
+/**
+ * Apply one field change. A field that is only required when another field has a given value
+ * (e.g. bug_category when verdict = buggy) is cleared when that value is changed away, so a
+ * flipped answer can't leave a contradictory label behind.
+ */
+export function withChange(fields: FieldDef[], values: Record<string, any>, id: string, v: any): Record<string, any> {
+  const next = { ...values, [id]: v };
+  for (const f of fields) {
+    const w = f.required_when;
+    if (w && w.field === id && values[id] === w.equals && v !== w.equals) delete next[f.id];
+  }
+  return next;
+}
+
 /** Drop untouched values so "not filled in" reads as missing, not as an empty string. */
 export function clean(values: Record<string, any>): Record<string, any> {
   return Object.fromEntries(Object.entries(values).filter(([, v]) => v !== null && v !== undefined && v !== ""));

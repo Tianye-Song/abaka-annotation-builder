@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# One command: install deps, build the UI, create the example projects, serve on :8000.
+# One command: install deps, build the UI, serve on :8000.
+# First start seeds example users and projects; everything else happens in the UI.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 PORT="${PORT:-8000}"
@@ -11,7 +12,7 @@ if command -v uv >/dev/null 2>&1; then
   PY=(uv run --quiet python)
 else
   [ -d .venv ] || python3 -m venv .venv
-  .venv/bin/pip install --quiet fastapi uvicorn pydantic pyyaml jsonschema
+  .venv/bin/pip install --quiet fastapi uvicorn pydantic pyyaml jsonschema python-multipart
   PY=(.venv/bin/python)
 fi
 
@@ -20,9 +21,6 @@ cd "$ROOT/frontend"
 [ -d node_modules ] || npm install --no-audit --no-fund --silent
 npm run --silent build >/dev/null
 
-echo "→ projects"
 cd "$ROOT/backend"
-"${PY[@]}" -m app.cli init
-
-echo "→ http://localhost:$PORT"
+echo "→ open http://localhost:$PORT  (starts at the login page)"
 exec "${PY[@]}" -m uvicorn app.main:app --port "$PORT"

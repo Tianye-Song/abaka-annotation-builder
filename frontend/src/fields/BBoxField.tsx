@@ -1,9 +1,8 @@
 import { useRef, useState } from "react";
 import type { WidgetProps } from ".";
+import { colorFor, listEditor } from "./shared";
 
 interface Box { x: number; y: number; w: number; h: number; label: string }
-
-export const PALETTE = ["#e4572e", "#2e86de", "#17a673", "#f2a541", "#8e44ad", "#d63384", "#20c997"];
 
 /** Draw boxes on the item image. Coordinates are stored in natural image pixels. */
 export function BBoxField({ field, value, onChange, item, readOnly }: WidgetProps) {
@@ -16,7 +15,8 @@ export function BBoxField({ field, value, onChange, item, readOnly }: WidgetProp
   const [drag, setDrag] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const svg = useRef<SVGSVGElement>(null);
-  const color = (label: string) => PALETTE[classes.indexOf(label) % PALETTE.length];
+  const color = colorFor(classes);
+  const { update, remove } = listEditor(boxes, onChange);
 
   const toImage = (e: React.MouseEvent) => {
     const r = svg.current!.getBoundingClientRect();
@@ -38,8 +38,6 @@ export function BBoxField({ field, value, onChange, item, readOnly }: WidgetProp
     setDrag(null);
     if (b.w >= 3 && b.h >= 3) onChange([...boxes, b]);
   };
-  const update = (i: number, patch: Partial<Box>) => onChange(boxes.map((b, j) => (j === i ? { ...b, ...patch } : b)));
-  const remove = (i: number) => onChange(boxes.filter((_, j) => j !== i));
 
   return (
     <div className="bbox">

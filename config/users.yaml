@@ -1,6 +1,0 @@
-# Shared user directory. Roles are granted per project, in each project.yaml.
-- {id: alice, name: Alice Admin}
-- {id: bob,   name: Bob}
-- {id: carol, name: Carol}
-- {id: dan,   name: Dan}
-- {id: erin,  name: Erin}

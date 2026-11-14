@@ -1,0 +1,25 @@
+# First-run demo data: three fake accounts, one per role. The passwords are demo
+# credentials for local testing only; they are stored hashed in the database. Loaded once on first
+# start; after that, users, teams and projects are managed in the UI.
+# (./annotate reset wipes the data so the next start re-seeds.)
+
+users:
+  - {id: alice, name: Alice,    roles: [admin],    password: demo123}     # creates projects, manages users and teams, sees progress
+  - {id: bob,   name: Bob,     roles: [worker],   password: demo123}    # annotates assigned tasks
+  - {id: carol, name: Carol, roles: [reviewer], password: demo123}  # reviews submissions, passes or fails with a comment
+# An account can hold several roles, e.g. roles: [worker, reviewer]; admins change them on the Users page.
+
+# Team per example project: its workers and its reviewers (independent; a task's reviewer is picked when it's assigned).
+projects:
+  speaker-turns:
+    created_by: alice
+    workers: [bob]
+    reviewers: [carol]
+  street-objects:
+    created_by: alice
+    workers: [bob]
+    reviewers: [carol]
+  code-correctness:
+    created_by: alice
+    workers: [bob]
+    reviewers: [carol]

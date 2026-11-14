@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { WidgetProps } from ".";
-import { PALETTE } from "./BBoxField";
+import { colorFor, listEditor } from "./shared";
 
 interface Segment { start: number; end: number; speaker: string; text?: string }
 
@@ -17,7 +17,8 @@ export function AudioSegmentsField({ field, value, onChange, item, readOnly }: W
   const [duration, setDuration] = useState<number>(item.meta.duration ?? 0);
   const [speaker, setSpeaker] = useState(speakers[0]);
   const [pendingStart, setPendingStart] = useState<number | null>(null);
-  const color = (s: string) => PALETTE[speakers.indexOf(s) % PALETTE.length];
+  const color = colorFor(speakers);
+  const { update, remove } = listEditor(segs, onChange);
 
   useEffect(() => {
     const a = audio.current!;
@@ -33,8 +34,6 @@ export function AudioSegmentsField({ field, value, onChange, item, readOnly }: W
   const sorted = (xs: Segment[]) => [...xs].sort((a, b) => a.start - b.start);
   const add = (start: number, end: number) =>
     onChange(sorted([...segs, { start, end, speaker, ...(transcribe ? { text: "" } : {}) }]));
-  const update = (i: number, patch: Partial<Segment>) => onChange(segs.map((s, j) => (j === i ? { ...s, ...patch } : s)));
-  const remove = (i: number) => onChange(segs.filter((_, j) => j !== i));
   const play = (s: Segment) => {
     const a = audio.current!;
     a.currentTime = s.start;

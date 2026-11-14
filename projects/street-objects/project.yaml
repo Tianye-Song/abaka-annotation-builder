@@ -34,9 +34,3 @@ review:
     - No objects are missing a box
     - Boxes are tight (no big margins)
     - Every class label is correct
-
-members:
-  alice: admin
-  carol: worker
-  dan: worker
-  bob: reviewer      # bob is a worker on audio and a reviewer here

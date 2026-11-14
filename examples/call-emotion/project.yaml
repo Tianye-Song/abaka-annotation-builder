@@ -1,0 +1,29 @@
+# Audio, created in the UI. Data: upload projects/speaker-turns/data/*.wav
+slug: call-emotion
+name: "Audio · Caller emotion"
+modality: audio
+description: Mark who is talking when, then rate the caller's emotion.
+
+data:
+  kind: files
+  path: data
+  glob: "*.wav"
+
+task:
+  instructions: |
+    Mark each speaker turn (no transcript needed). Then judge the **caller's**
+    overall emotion and how strong it is.
+  fields:
+    - {id: turns, type: audio_segments, label: Speaker turns, speakers: [caller, agent], transcribe: false, required: true}
+    - {id: emotion, type: choice, label: Caller emotion, choices: [neutral, happy, frustrated, angry], required: true}
+    - {id: intensity, type: rating, label: Intensity, min: 1, max: 5, labels: {1: barely, 5: extreme}, required: true}
+    - {id: notes, type: text, label: Notes, multiline: true}
+  checks:
+    - {check: min_count, field: turns, min: 2}
+    - {check: no_overlap, field: turns}
+    - {check: within_duration, field: turns}
+
+review:
+  checklist:
+    - Each speaker change is marked
+    - Emotion and intensity match the tone of voice

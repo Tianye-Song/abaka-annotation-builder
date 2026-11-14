@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, api, currentUser, useLoad, type CheckResult, type TaskDetail } from "../api";
+import { useNavigate, useParams } from "react-router-dom";
+import { ApiError, api, currentUser, useLoad, type CheckResult, type TaskDetail, type TaskRow } from "../api";
 import { ChecksList, FieldList, ItemView, Md, ReviewNote, StatusBadge } from "../components/common";
-import { WIDGETS, clean } from "../fields";
+import { WIDGETS, clean, withChange } from "../fields";
 import { useProject } from "./ProjectLayout";
+import { workerOrder } from "./Queues";
 
 type Mode = "annotate" | "review" | "view";
 
@@ -13,21 +14,31 @@ type Mode = "annotate" | "review" | "view";
  */
 export function TaskPage() {
   const p = useProject();
-  const def = p.definition;
   const { taskId } = useParams();
   const nav = useNavigate();
   const { data: task, error, reload } = useLoad(() => api<TaskDetail>(`/tasks/${taskId}`), [taskId]);
+  // A worker steps through their own tasks in queue order (Previous / Next, and on to the next after submit).
+  const isWorker = p.roles.includes("worker");
+  const { data: mine } = useLoad(
+    () => (isWorker ? api<TaskRow[]>(`/projects/${p.slug}/my-tasks`) : Promise.resolve([])), [p.slug, taskId, isWorker]);
 
   if (error) return <div className="error">{error}</div>;
   if (!task) return <div className="muted">Loading…</div>;
 
   const me = currentUser();
   const mode: Mode =
-    task.roles.includes("worker") && task.assignee === me && (task.status === "assigned" || task.status === "failed") ? "annotate"
-    : task.roles.includes("reviewer") && task.status === "submitted" && task.assignee !== me ? "review"
+    task.roles.includes("worker") && task.assignee === me && ["assigned", "failed", "submitted"].includes(task.status) ? "annotate"
+    : task.reviewer === me && task.status === "submitted" ? "review"
     : "view";
   const latest = task.history[task.history.length - 1];
   const back = mode === "annotate" ? "../work" : mode === "review" ? "../review" : -1;
+
+  const order = task.assignee === me && mine ? workerOrder(mine) : [];
+  const at = order.findIndex((t) => t.id === task.id);
+  const prev = at > 0 ? order[at - 1] : undefined;
+  const next = at >= 0 ? order[at + 1] : undefined;
+  const nextOpen = order.find((t) => t.id !== task.id && (t.status === "failed" || t.status === "assigned"));
+  const go = (t: TaskRow) => nav(`../task/${t.id}`);
 
   return (
     <div>
@@ -35,10 +46,17 @@ export function TaskPage() {
         <button className="link" onClick={() => (typeof back === "number" ? nav(back) : nav(back))}>← back</button>
         <span className="mono">{task.item.external_id}</span>
         <StatusBadge status={task.status} />
-        <span className="muted small">assignee: {task.assignee ?? "—"} · {task.history.length} version(s) · mode: {mode}</span>
+        <span className="muted small">worker: {task.assignee ?? "—"} · reviewer: {task.reviewer ?? "—"} · {task.history.length} version(s) · mode: {mode}</span>
+        {at >= 0 && (
+          <span className="task-nav">
+            <button disabled={!prev} onClick={() => prev && go(prev)}>← Previous</button>
+            <span className="muted small">{at + 1} / {order.length}</span>
+            <button disabled={!next} onClick={() => next && go(next)}>Next →</button>
+          </span>
+        )}
       </div>
       {mode === "annotate" ? (
-        <Annotate key={task.id} task={task} onDone={() => nav("../work")} />
+        <Annotate key={task.id} task={task} onDone={() => (nextOpen ? go(nextOpen) : nav("../work"))} />
       ) : (
         <Inspect key={`${task.id}-${task.status}`} task={task} canReview={mode === "review"} onDone={() => { reload(); nav("../review"); }} />
       )}
@@ -54,7 +72,6 @@ export function TaskPage() {
           ))}
         </details>
       )}
-      <p className="muted small">Definition: <Link to="../definition">{def.slug}</Link></p>
     </div>
   );
 }
@@ -65,18 +82,21 @@ function Split({ task, values, onChange, readOnly, children }: {
   const def = useProject().definition;
   const surface = def.task.fields.filter((f) => WIDGETS[f.type]?.surface);
   const rest = def.task.fields.filter((f) => !WIDGETS[f.type]?.surface);
+  // Instructions sit above the task for every role (worker, reviewer, admin), so they're read first.
   return (
-    <div className="split">
-      <div className="left">
-        <ItemView def={def} item={task.item} hideMedia={surface.length > 0} />
-        <FieldList fields={surface} values={values} onChange={onChange} item={task.item} readOnly={readOnly} />
+    <>
+      {def.task.instructions && <div className="instructions"><Md text={def.task.instructions} /></div>}
+      <div className="split">
+        <div className="left">
+          <ItemView def={def} item={task.item} hideMedia={surface.length > 0} />
+          <FieldList fields={surface} values={values} onChange={onChange} item={task.item} readOnly={readOnly} />
+        </div>
+        <div className="right">
+          <FieldList fields={rest} values={values} onChange={onChange} item={task.item} readOnly={readOnly} />
+          {children}
+        </div>
       </div>
-      <div className="right">
-        {def.task.instructions && <div className="instructions"><Md text={def.task.instructions} /></div>}
-        <FieldList fields={rest} values={values} onChange={onChange} item={task.item} readOnly={readOnly} />
-        {children}
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -89,33 +109,45 @@ function Annotate({ task, onDone }: { task: TaskDetail; onDone: () => void }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const timer = useRef<number>();
   const dirty = useRef(false);
+  const unsaved = useRef<Record<string, any> | null>(null); // edits whose autosave hasn't run yet
+
+  // Leaving the task (Previous / Next / back) before the autosave fires: save the draft now.
+  useEffect(() => () => {
+    if (unsaved.current) api(`/tasks/${task.id}/draft`, "PUT", { data: unsaved.current }).catch(() => {});
+  }, [task.id]);
+
+  const showProblems = (r: { checks?: CheckResult[]; schema_errors?: string[] }) => {
+    setChecks(r.checks ?? []); setSchemaErrors(r.schema_errors ?? []);
+  };
+  const revalidate = async () => showProblems(await api(`/tasks/${task.id}/validate`, "POST", { data: clean(values) }));
 
   // Autosave the draft and re-run validation shortly after each change.
   useEffect(() => {
-    if (!dirty.current) {
-      api(`/tasks/${task.id}/validate`, "POST", { data: clean(values) }).then((r) => { setChecks(r.checks); setSchemaErrors(r.schema_errors); });
-      return;
-    }
+    if (!dirty.current) { revalidate(); return; }
     setSaved("saving");
+    unsaved.current = values;
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(async () => {
+      unsaved.current = null;
       await api(`/tasks/${task.id}/draft`, "PUT", { data: values });
-      const r = await api(`/tasks/${task.id}/validate`, "POST", { data: clean(values) });
-      setChecks(r.checks); setSchemaErrors(r.schema_errors); setSaved("saved");
+      await revalidate();
+      setSaved("saved");
     }, 600);
     return () => window.clearTimeout(timer.current);
   }, [values, task.id]);
 
-  const change = (id: string, v: any) => { dirty.current = true; setValues((s) => ({ ...s, [id]: v })); };
+  const fields = useProject().definition.task.fields;
+  const change = (id: string, v: any) => { dirty.current = true; setValues((s) => withChange(fields, s, id, v)); };
   const blocking = schemaErrors.length + checks.filter((c) => !c.passed && c.severity === "error").length;
   const submit = async () => {
     try {
       window.clearTimeout(timer.current);
+      unsaved.current = null;
       await api(`/tasks/${task.id}/submit`, "POST", { data: clean(values) });
       onDone();
     } catch (e) {
       if (e instanceof ApiError && e.status === 422 && typeof e.detail === "object") {
-        setChecks(e.detail.checks ?? []); setSchemaErrors(e.detail.schema_errors ?? []);
+        showProblems(e.detail);
         setSubmitError("Fix the problems below before submitting.");
       } else setSubmitError(String((e as Error).message));
     }
@@ -123,6 +155,11 @@ function Annotate({ task, onDone }: { task: TaskDetail; onDone: () => void }) {
 
   return (
     <>
+      {task.status === "submitted" && (
+        <div className="banner">
+          <b>Submitted, waiting for review.</b> You can still change it until the reviewer decides.
+        </div>
+      )}
       {task.status === "failed" && latest?.review && (
         <div className="banner fail">
           <b>Sent back for rework</b> by {latest.review.reviewer}: “{latest.review.comment}”
@@ -135,7 +172,7 @@ function Annotate({ task, onDone }: { task: TaskDetail; onDone: () => void }) {
         {submitError && <div className="error">{submitError}</div>}
         <div className="actions">
           <button className="primary" onClick={submit} disabled={blocking > 0}>
-            {task.status === "failed" ? "Resubmit" : "Submit"} for review
+            {task.status === "submitted" ? "Update submission" : `${task.status === "failed" ? "Resubmit" : "Submit"} for review`}
           </button>
           <span className="muted small">{saved === "saving" ? "saving draft…" : saved === "saved" ? "draft saved" : ""}</span>
           {blocking > 0 && <span className="muted small">{blocking} blocking problem(s)</span>}

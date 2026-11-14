@@ -1,5 +1,6 @@
 # The "fourth project": written after the first three, with zero new code.
-# Stand it up with:  ./annotate create examples/llm-rubric
+# Stand it up in the UI: Portal -> New project -> start from this template,
+# then upload examples/llm-rubric/items.jsonl.
 slug: llm-rubric
 name: "Text · LLM answer rubric"
 modality: text
@@ -27,8 +28,3 @@ task:
 
 review:
   checklist: [Scores are consistent with the justification]
-
-members:
-  erin: admin
-  bob: worker
-  dan: reviewer

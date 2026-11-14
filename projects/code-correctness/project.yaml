@@ -1,7 +1,7 @@
 # Code: label each snippet correct or buggy, and explain why.
 slug: code-correctness
 name: "Code · Correct or buggy"
-modality: text
+modality: code
 description: Short Python functions with a stated intent. Decide whether each one does what it claims.
 
 data:
@@ -47,9 +47,3 @@ review:
     - Verdict is right
     - Reason points at the actual problem (or convincingly argues correctness)
   require_comment_on_fail: true
-
-members:
-  alice: admin
-  dan: worker
-  erin: worker
-  carol: reviewer

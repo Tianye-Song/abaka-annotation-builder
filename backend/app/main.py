@@ -17,14 +17,16 @@ FRONTEND_DIST = db.ROOT / "frontend" / "dist"
 
 @app.on_event("startup")
 def _startup() -> None:
-    db.init_db()
+    """Create the database and, on first run only, the example users and projects."""
+    for slug in registry.seed():
+        print(f"seeded example project: {slug}")
 
 
 @app.get("/media/{slug}/{path:path}")
 def media(slug: str, path: str):
     """Serve item media from the project's own folder (path-traversal safe).
 
-    Not behind mock auth because <audio>/<img> can't send our header; real auth
+    Not behind the session token because <audio>/<img> can't send headers; production
     would use signed URLs or a session cookie.
     """
     with db.closing() as conn:

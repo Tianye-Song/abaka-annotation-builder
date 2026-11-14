@@ -1,0 +1,28 @@
+# Image, created in the UI. Data: upload projects/street-objects/data/*.png
+slug: pedestrian-safety
+name: "Image · Pedestrian safety"
+modality: image
+description: Box people and cars, then rate the risk to pedestrians.
+
+data:
+  kind: files
+  path: data
+  glob: "*.png"
+
+task:
+  instructions: |
+    Box every **person** and every **car**. Then rate the pedestrian risk. If you
+    say *high*, explain why.
+  fields:
+    - {id: boxes, type: bbox, label: People and cars, classes: [person, car], required: true}
+    - {id: risk, type: choice, label: Pedestrian risk, choices: [low, medium, high], required: true}
+    - {id: why, type: text, label: "Why is it high risk?", required_when: {field: risk, equals: high}}
+  checks:
+    - {check: min_count, field: boxes, min: 1}
+    - {check: within_image, field: boxes}
+    - {check: min_box_size, field: boxes, min_px: 6}
+
+review:
+  checklist:
+    - Every person and car is boxed
+    - Risk rating is reasonable

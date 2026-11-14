@@ -1,6 +1,18 @@
 import type { CheckResult, Definition, FieldDef, Item, Panel, Status, Version } from "../api";
 import { WIDGETS, isRequired } from "../fields";
 
+export const MODALITY_ICON: Record<string, string> = { audio: "🎧", image: "🖼️", text: "📝", code: "💻" };
+
+/** Shown next to a project name only when it isn't active. */
+export function ProjectStatusBadge({ status }: { status: string }) {
+  return status === "active" ? null : <span className={`badge st-${status}`}>{status}</span>;
+}
+
+/** A list of blocking problems (bad definition, failed create, schema errors). */
+export function ProblemList({ problems }: { problems: string[] }) {
+  return <ul className="checks">{problems.map((p, i) => <li key={i} className="bad">✗ {p}</li>)}</ul>;
+}
+
 export function StatusBadge({ status }: { status: Status | null }) {
   const label: Record<string, string> = { failed: "rework", unassigned: "unassigned" };
   return <span className={`badge s-${status ?? "none"}`}>{status ? label[status] ?? status : "no task"}</span>;

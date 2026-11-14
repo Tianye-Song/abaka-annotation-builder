@@ -1,103 +1,124 @@
 # Annotation Platform Builder
 
-Describe an annotation project in one YAML file and get a working platform for it:
-admin, worker and reviewer views, task assignment, a review loop with rework,
-validation and quality checks, progress and pass rate, and export.
+Create a data-annotation project **from the browser**: write (or copy) a short
+definition, upload the data, add the team, and you have a working platform for it.
+Each platform has admin, worker and reviewer views, task assignment, a review loop with rework,
+validation and quality checks, progress and pass rate, and export. All of that is shared code, so a new project needs no new code.
 
-This repo includes three projects built that way (audio, image and code) and a
-fourth that you can stand up live with one command.
-
-See **[OVERVIEW.md](OVERVIEW.md)** for the architecture, design decisions and trade-offs.
+Three example projects ship with it (audio, image, code). The fourth is created live in the UI.
+See **[OVERVIEW.md](OVERVIEW.md)** for the architecture, decisions and trade-offs.
 
 ---
 
-## Setup and run (one command)
+## How to launch
 
-Requirements: Python ≥ 3.10, Node ≥ 18. [`uv`](https://docs.astral.sh/uv/) is used if installed; otherwise the script falls back to `venv` + `pip`.
+**Prerequisites:** Python 3.10+ and Node.js 18+ (`python3 --version`, `node --version`).
+[`uv`](https://docs.astral.sh/uv/) is used if it's installed; otherwise the script creates a `venv` with `pip`. Nothing else is needed: storage is a local SQLite file.
+
+**1. Get the code**
+
+```bash
+git clone https://github.com/Tianye-Song/abaka-annotation-builder.git   # or unzip the submission
+cd abaka-annotation-builder
+```
+
+**2. Start it (one command)**
 
 ```bash
 ./start.sh
 ```
 
-The script installs dependencies, builds the UI, registers every project under
-`projects/`, and serves the app at **http://localhost:8000**.
+This installs the backend and frontend dependencies, builds the UI and starts the server. The first start also creates
+the database with three demo accounts and three example projects. When you see
 
-Sign in by picking a user. Login is mocked; the picker shows each user's role in each project.
+```
+→ open http://localhost:8000  (starts at the login page)
+```
 
-| user  | speaker-turns (audio) | street-objects (image) | code-correctness (code) |
-|-------|-----------------------|------------------------|-------------------------|
-| alice | admin                 | admin                  | admin                   |
-| bob   | worker                | **reviewer**           | –                       |
-| carol | worker                | worker                 | **reviewer**            |
-| dan   | **reviewer**          | worker                 | worker                  |
-| erin  | –                     | –                      | worker                  |
+**3. Open http://localhost:8000** in a browser. The system starts at the **login page**: choose an account from the
+dropdown and enter its password. Three demo accounts are created on first start (defined in [config/seed.yaml](config/seed.yaml)):
 
-To start over with a clean database: `./annotate reset`.
+| account | password | role | can do |
+|---------|----------|------|--------|
+| **Alice** | `demo123` | admin | create projects, upload data, manage users and teams, create and assign tasks, see progress, export |
+| **Bob** | `demo123` | worker | annotate the tasks assigned to him and submit them |
+| **Carol** | `demo123` | reviewer | review Bob's submissions: pass, or fail with a comment |
 
-### Walk one task through the lifecycle (image project)
+An account can hold several roles; admins change them on the **Users** page. In every example project Bob is on the team
+as a worker and Carol as a reviewer. A sign-in lasts for the browser tab, so you can sign in as a different account in a
+second tab side by side; tick **Remember me** to stay signed in across browser restarts. **Sign out** is at the top right.
 
-1. **alice** → *Image · Street objects* → **Admin**: *Create tasks* → tick the header checkbox → *Assign selected*.
-   The default assignment spreads tasks across workers, giving each new task to the worker with the fewest open tasks.
-2. **carol** → **My tasks** → open a task, pick a class and drag boxes on the image.
-   The automatic checks run as you work, and the draft saves itself. Then *Submit for review*.
-3. **bob** → **Review**: open the task. He sees the boxes read-only, the check results and the checklist.
-   Writing a comment and clicking *Fail → rework* sends the task back.
-4. **carol** sees the task under *Needs rework* with bob's comment. Her previous boxes are preloaded; she fixes them and clicks *Resubmit* (this creates v2).
-5. **bob** ticks the checklist and clicks *Pass*. **alice**'s dashboard now shows the pass rate, first-pass yield and the per-worker table, and *Export passed (JSONL)* downloads the result.
+**Stop** with `Ctrl+C`. **Start over** from a clean slate with `./annotate reset`, then `./start.sh` again.
+Use another port with `PORT=8080 ./start.sh`.
 
-The same steps work in the audio and code projects with the same people in different roles.
+**Troubleshooting**
+- `database ... uses an old schema` → run `./annotate reset` (the data model changed since the database was created).
+- Port already in use → `PORT=8080 ./start.sh`.
+- `./start.sh: Permission denied` → `chmod +x start.sh annotate`.
 
 ---
 
-## Creating a new project instance
+## What each role does in the UI
 
-A project is a folder with a `project.yaml` and its data. **No code changes are needed.**
+After sign-in, **Your projects** lists every project you can access with your role in each and what's waiting
+("3 to do", "2 to review"). Each role tag opens that view directly; **← Projects** brings you back from anywhere.
 
-```bash
-./annotate validate examples/llm-rubric   # optional: check the definition and data, touches nothing
-./annotate create   examples/llm-rubric   # register it, its members and its items
-```
+| Role | Where | What |
+|------|-------|------|
+| **Admin** | Your projects → **+ New project** | Choose **New project** (blank definition) or **Reuse a previous project**: copy any existing project's definition, optionally reusing its data so nothing needs uploading, or start from an example. The YAML editor checks it as you type and previews the controls, checks and output schema it will generate. Upload data if needed, then **Create**. |
+| | your name (top right) → **Users** | Add users (with a password), tick their account roles (any mix of admin / worker / reviewer), reset passwords, delete users who have no work on record. Only users with the worker role can join a team as workers, and only reviewers as reviewers; a role in use on a team can't be removed. |
+| | project → **Admin** | Set the project status (active / paused / archived), **Upload items**, **Create tasks**, filter and sort the task list by status, **Assign** tasks (pick a worker and a reviewer independently, or auto-balance either), manage the **Team** (a list of workers and a list of reviewers), see progress, pass rate and first-pass yield, per-worker and per-reviewer progress, and **Export** passed annotations. |
+| | Admin → **Definition** | Edit the definition (admins only). Saving creates a new definition version; existing submissions keep the version they were validated against. |
+| **Worker** | project → **My tasks** | Rework first (with the reviewer's comment), then to do, then done. Annotate with controls generated from the definition; drafts save automatically and checks run live. **Submit** goes straight to your next task; **← Previous / Next →** steps through your tasks. A submitted task can still be edited and resubmitted until it is reviewed. |
+| **Reviewer** | project → **Review** | Only tasks assigned to you for review. Inspect the annotation (read-only), see the automatic check results, tick the checklist, **Pass**, or **Fail** with a comment, which sends the task back to the same worker. |
 
-Reload the browser: **erin** is now admin of *Text · LLM answer rubric*, bob is a worker and dan is the reviewer.
-The `create` command also works on a running server. It is idempotent: run it again after editing the YAML to update the definition and members and to load any new items.
+### How to create a new project instance (no code), then take one task end to end
 
-Other commands:
+1. Sign in as **Alice** → **+ New project** → **Reuse a previous project** → *Example definitions*: **Text · LLM answer rubric**. The preview on the right shows what will be generated.
+   Under *3 · Data*, choose `examples/llm-rubric/items.jsonl` from this repo → **Create project**.
+2. On the new project's **Admin** page: **Team** → add worker **Bob** and reviewer **Carol** → **Create tasks** → tick all → **Assign** (worker and reviewer on auto-balance).
+3. *sign out* → sign in as **Bob** → *My tasks* → open a task → score it → **Submit**.
+4. *sign out* → sign in as **Carol** → *Review* → open it → write a comment → **Fail → rework**.
+5. **Bob** sees it under *Needs rework* with the comment, fixes it → **Resubmit** (v2).
+6. **Carol** ticks the checklist → **Pass**. **Alice**'s Admin page now shows the pass rate and first-pass yield, and **Export passed** downloads the JSONL.
 
-```bash
-./annotate schema projects/code-correctness   # print the output JSON Schema derived from the definition
-./annotate init                               # create/update every project under projects/
-```
+More ready-made definitions to try, one per data category (each file's first line says which data to upload):
+`examples/call-emotion` (audio), `examples/pedestrian-safety` (image), `examples/review-sentiment` (text).
 
-### Definition reference
+The same steps work in the audio, image and code projects; only the controls differ. To start from scratch instead,
+choose **New project** (blank definition) and see *Writing a definition* below.
+
+---
+
+## Writing a definition
+
+The definition holds only what is unique to the project. Users, team, assignment, review flow and storage are shared.
 
 ```yaml
-slug: my-project                 # URL id
+slug: my-project                 # URL id, can't change later
 name: "Text · My project"
-modality: text                   # audio | image | text
+modality: text                   # the data category: audio | image | text | code
 description: ...
 
-data:                            # how items are loaded
-  kind: jsonl                    # jsonl: one item per line, needs "id"; other keys become item metadata
-  path: items.jsonl              # files: one item per file matching `glob` under `path`
+data:                            # how uploaded data becomes items
+  kind: jsonl                    # jsonl: one item per line (needs "id"); other keys become item metadata
+  path: items.jsonl              # files: one item per uploaded media file matching `glob`
   # glob: "*.wav"                #   (audio duration / PNG size are probed automatically)
-  # meta: meta.jsonl             #   optional per-file metadata: {"file": "a.wav", ...}
 
 display:                         # which item metadata to show, and how (text | code | markdown)
   - {key: question, label: Question}
 
 task:
   instructions: Markdown shown to workers and reviewers.
-  fields:                        # the worker's controls; the order here is the order on screen
+  fields:                        # the worker's controls, in order
     - {id: verdict, type: choice, choices: [yes, no], required: true}
     - {id: why, type: text, multiline: true, required_when: {field: verdict, equals: no}}
-  checks:                        # automatic quality checks; "error" blocks submit, "warning" informs the reviewer
+  checks:                        # automatic QC: "error" blocks submit, "warning" informs the reviewer
     - {check: min_words, field: why, min: 5}
 
 review:
   checklist: [The verdict is right]   # the reviewer must tick every item to pass (configurable)
   require_comment_on_fail: true
-
-members: {alice: admin, bob: worker, carol: [reviewer, worker]}
 ```
 
 | field type       | params                                   | modalities | saved value |
@@ -119,50 +140,56 @@ members: {alice: admin, bob: worker, carol: [reviewer, worker]}
 | `min_box_size`    | `min_px`    | bbox |
 
 Every field also accepts `label`, `help`, `required` and `required_when`.
-A definition is fully validated before anything is written. Errors include unknown field types, a `bbox` field on an audio project, a check that refers to a missing field, and a bad parameter.
+Mistakes such as an unknown field type, a `bbox` on an audio project, or a check on a missing field are shown in the editor before anything is created.
 
-### Adding a new *kind* of control (rare)
-
-Add the backend type to `backend/app/fields.py` (its params and JSON Schema) and the widget to `frontend/src/fields/` (one React component plus a registry entry).
-Every project can then use it from YAML.
+**Same data category, new project:** in **New project** choose **Reuse a previous project**, pick a project already in the system, and keep *Also reuse its data* ticked to label the same items differently, or untick it and upload new data. The slug is renamed automatically (`…-v2`); change labels or fields as needed.
+**New data category or control:** add one field type in `backend/app/fields.py` and one widget in `frontend/src/fields/`. This is the only case that needs code.
 
 ---
 
-## How each example was created
+## Data model (SQLite, `backend/app/db.py`)
 
-| project | definition | data | command | what I did *not* have to write |
-|---|---|---|---|---|
-| Audio · Speaker turns | [projects/speaker-turns/project.yaml](projects/speaker-turns/project.yaml) | 6 synthetic 2-speaker dialogues (macOS TTS) | `./annotate create projects/speaker-turns` | audio player and timeline UI, segment validation, overlap/duration checks, review screen, workflow |
-| Image · Street objects | [projects/street-objects/project.yaml](projects/street-objects/project.yaml) | 7 generated street scenes (Pillow) | `./annotate create projects/street-objects` | box drawing UI, coordinate schema, in-bounds/min-size checks, review screen, workflow |
-| Code · Correct or buggy | [projects/code-correctness/project.yaml](projects/code-correctness/project.yaml) | 8 Python snippets (4 buggy) | `./annotate create projects/code-correctness` | code display, the conditional "category required if buggy" rule, rating widget, workflow |
-| Text · LLM rubric (4th) | [examples/llm-rubric/project.yaml](examples/llm-rubric/project.yaml) | 5 Q/A pairs | `./annotate create examples/llm-rubric` | everything. It's ~30 lines of YAML |
+| table | your entity | columns (key ones) |
+|-------|-------------|--------------------|
+| `users` | **user** | `id`, `name`, `password_hash` (salted PBKDF2) |
+| `user_roles` | account roles | `user_id`, `role`: admin (create projects, manage users and teams), worker (can be assigned jobs), reviewer (can review); a user may hold several |
+| `sessions` | *(added)* login sessions | `token` (sent as `Authorization: Bearer …`), `user_id`, `created_at` |
+| `projects` | **tasks** (schema, job list, status) | `id`, `slug`, `name`, `modality` (= task category), `status` (active/paused/archived), `definition_yaml` + `definition` (= schema), `created_by`, `created_at` |
+| `project_members` | **team** | `project_id`, `user_id`, `role` (worker or reviewer, independent), `created_by`, `created_at` |
+| `tasks` | **jobs** | `id`, `project_id`, `item_id`, `status`, `assignee` (worker), `reviewer_id` (chosen when the task is assigned), `draft` |
+| `items` | *(added)* the data behind each job | `external_id`, `payload` (media path + metadata) |
+| `submissions` | *(added)* what the worker produced | `task_id`, `version`, `data` (validated against the schema), `check_results`, `definition_hash` |
+| `reviews` | *(added)* the reviewer's decision | `submission_id`, `reviewer_id`, `decision` (pass/fail), `comment`, `checklist` |
+| `project_roles` (view) | – | derived `(project, user, role)`: account admins and the creator + the project's workers and reviewers; the portal lists these with a link to each role's view |
 
-All sample data is synthetic. `scripts/make_samples.py` regenerates the audio and images.
-In the app, each project's **Definition** tab shows the YAML next to what the platform derived from it, including the output JSON Schema.
+A job's lifecycle: `unassigned → assigned → submitted → passed`. `submitted → failed` sends it back to the same worker, and resubmitting creates v2 (`failed → submitted`).
+Until the reviewer decides, the worker may edit a submitted job; that replaces the pending submission instead of adding a version.
 
 ---
 
 ## Development
 
 ```bash
-cd backend && uv run pytest -q                                  # end-to-end lifecycle tests for all 4 projects
+cd backend && uv run pytest -q                                  # end-to-end API tests (the same calls the UI makes)
 cd backend && uv run uvicorn app.main:app --reload --port 8000  # API with reload
 cd frontend && npm run dev                                      # UI with HMR on :5173 (proxies /api to :8000)
+./annotate reset                                                # dev only: wipe the DB + uploads; next start re-seeds
 ```
 
 ```
 backend/app/
-  definition.py  project definition models, cross-validation, output-schema derivation
+  definition.py  definition models, cross-validation, output-schema derivation
   fields.py      field-type registry (params, modality, JSON Schema)
   checks.py      automatic quality-check registry
   lifecycle.py   task state machine (who can move a task where)
-  registry.py    definition folder -> project instance (members, item loading, media probing)
-  api.py         shared HTTP API for every project (admin / worker / reviewer)
+  registry.py    create/update a project from YAML + uploads; first-run seed
+  api.py         every operation the UI performs
   db.py          SQLite schema
-  cli.py         ./annotate commands
 frontend/src/
-  fields/        widget registry, one widget per field type
-  pages/         Portal, Admin, Queues, TaskPage (annotate / review / view), Definition
-projects/        the three example projects (definition + data)
-examples/        the "fourth project"
+  fields/        widget registry: one widget per field type
+  components/    DefinitionEditor (live-validated YAML), shared views
+  pages/         Portal (+login), NewProject, Users, Admin (+Team), Queues, TaskPage, Definition
+projects/        example projects seeded on first start (definition + sample data)
+examples/        more definitions (+ data) to create new projects from in the UI
+config/seed.yaml first-run users and teams
 ```

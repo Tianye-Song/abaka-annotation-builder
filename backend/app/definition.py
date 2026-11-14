@@ -1,7 +1,8 @@
 """Project definition: the only thing a new project has to write.
 
-A definition is a YAML file (projects/<slug>/project.yaml) validated against the
-models below. From it the platform derives everything project-specific:
+A definition is YAML (written in the admin UI, or a projects/<slug>/project.yaml
+seed) validated against the models below. It holds only what is unique to the
+project; who works on it is managed separately (project_members). From it the platform derives everything project-specific:
 the item loader, the worker's controls, the output JSON Schema, automatic
 checks and the reviewer's checklist.
 """
@@ -9,17 +10,16 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, model_validator
 
 from .checks import CHECKS
 from .fields import FIELD_TYPES
 
 Role = Literal["admin", "worker", "reviewer"]
-Modality = Literal["audio", "image", "text"]
+Modality = Literal["audio", "image", "text", "code"]
 
 
 class _Strict(BaseModel):
@@ -121,7 +121,6 @@ class ProjectDef(_Strict):
     display: list[Panel] = []
     task: TaskDef
     review: ReviewRules = ReviewRules()
-    members: dict[str, Role | list[Role]] = {}
 
     @model_validator(mode="after")
     def _cross_validate(self):
@@ -144,13 +143,6 @@ class ProjectDef(_Strict):
             if allowed and fld.type not in allowed:
                 raise ValueError(f"check '{c.check}' can't run on field '{fld.id}' of type '{fld.type}'")
         return self
-
-    def member_roles(self) -> list[tuple[str, str]]:
-        out = []
-        for user, roles in self.members.items():
-            for r in [roles] if isinstance(roles, str) else roles:
-                out.append((user, r))
-        return out
 
 
 def output_schema(p: ProjectDef) -> dict:
@@ -186,10 +178,28 @@ def output_schema(p: ProjectDef) -> dict:
     return out
 
 
-def load_definition(project_dir: Path) -> ProjectDef:
-    path = project_dir / "project.yaml"
-    raw = yaml.safe_load(path.read_text())
-    return ProjectDef.model_validate(raw)
+class DefinitionError(ValueError):
+    """A definition that can't be used, with one message per problem (shown in the UI)."""
+
+    def __init__(self, problems: list[str]):
+        super().__init__("; ".join(problems))
+        self.problems = problems
+
+
+def parse_definition(text: str) -> ProjectDef:
+    """YAML text -> validated definition, or DefinitionError listing every problem."""
+    try:
+        raw = yaml.safe_load(text)
+    except yaml.YAMLError as e:
+        raise DefinitionError([f"YAML syntax: {e}"]) from None
+    if not isinstance(raw, dict):
+        raise DefinitionError(["the definition must be a YAML mapping (key: value pairs)"])
+    try:
+        return ProjectDef.model_validate(raw)
+    except ValidationError as e:
+        raise DefinitionError(
+            [f"{'.'.join(str(x) for x in err['loc']) or 'definition'}: {err['msg'].removeprefix('Value error, ')}" for err in e.errors()]
+        ) from None
 
 
 def definition_hash(p: ProjectDef) -> str:
